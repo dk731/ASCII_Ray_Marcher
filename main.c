@@ -13,7 +13,7 @@ int main()
   camera main_camera = {.direction = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
                         .fov = {.x = hor_fow, .y = SHEIGHT / SWIDTH * hor_fow},
                         .pos = {.x = 0.0f, .y = 0.0f, .z = 0.0f}};
-
+  char b = 0;
   while (1)
   {
     render(screen_buf, &main_camera);
