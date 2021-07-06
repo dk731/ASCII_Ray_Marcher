@@ -4,33 +4,47 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cblas.h>
+#include <ncurses.h>
+#include <inttypes.h>
+#include <time.h>
 
 #include "vec_help.h"
 
 #define SWIDTH 69
 #define SHEIGHT 20
-#define BUF_SIZE (SWIDTH + 1) * SHEIGHT + 1
+#define RSWIDTH (SWIDTH + 2)
+#define BUF_SIZE RSWIDTH *SHEIGHT + 1
 
-#define MAX_STEPS 200
-#define MIN_DIST 0.00001
+#define MAX_STEPS 500
+#define MIN_DIST 0.000000000001
+#define MAX_INP_LEN 1024
 
-char symbols[] = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
-const float symb_size = sizeof(symbols) - 2;
+#define DEBUG_PRINT
+
+typedef struct
+{
+	char inp_chars[MAX_INP_LEN];
+	int top_ind;
+} inp_str;
 
 typedef struct
 {
 	vec3 origin;
 	vec3 direction;
 
-	float sum_dist;
+	double sum_dist;
 	int steps;
 } ray;
 
 typedef struct
 {
 	vec3 pos;
-	vec3 direction;
+	vec3 direction_ang;
+	vec3 direction_vec;
 	vec2 fov;
+
+	double *trans_mat; // 3x3 matrix
 } camera;
 
 typedef struct
@@ -40,16 +54,42 @@ typedef struct
 	camera *cam;
 } shade_args;
 
-void draw(char *buf)
+char symbols[] = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+const double symb_size = sizeof(symbols) - 2;
+
+pthread_mutex_t stdout_lock;
+pthread_mutex_t inp_lock;
+inp_str inp;
+int64_t last_draw_time;
+int64_t time_delta;
+
+int64_t millis()
 {
-	printf("\033c");
-	printf("%s", buf);
+	struct timespec now;
+	timespec_get(&now, TIME_UTC);
+	return ((int64_t)now.tv_sec) * 1000 + ((int64_t)now.tv_nsec) / 1000000;
 }
 
-float de(vec3 *pos)
+void draw(char *buf)
 {
-	vec3 tmp = {.x = fmod(pos->x, 1.0f) - 0.5f, .y = fmod(pos->y, 1.0f) - 0.5f, .z = pos->z};
-	return length3(&tmp) - 0.3; // sphere DE
+	pthread_mutex_lock(&stdout_lock);
+	printf("\033c");
+	printf("%s", buf);
+#ifdef DEBUG_PRINT
+	int64_t cur_time = millis();
+	time_delta = cur_time - last_draw_time;
+	last_draw_time = millis();
+	printf("\rFPS: %f    | input buffer len: %d%d\n", round(100000.0f / (float)time_delta) / 100.0f, inp.top_ind);
+#endif
+	pthread_mutex_unlock(&stdout_lock);
+}
+
+const sphere main_sphere = {.pos = {.x = 0.0, .y = 0.0, .z = 0.0}, 1.0};
+
+double de(vec3 *pos)
+{
+	cblas_daxpy(3, -1.0, &main_sphere.pos.x, 1, &pos->x, 1);
+	return cblas_dnrm2(3, &pos->x, 1) - main_sphere.r;
 }
 
 void march_ray(ray *ray)
@@ -58,12 +98,17 @@ void march_ray(ray *ray)
 	for (; ray->steps < MAX_STEPS; ray->steps++)
 	{
 		vec3 new_pos;
-		vmult3v(&ray->direction, ray->sum_dist, &new_pos);
-		nvadd3(&new_pos, &ray->origin);
-		float d = de(&new_pos);
+		memcpy(&new_pos, &ray->direction, sizeof(double) * 3);
+		cblas_dscal(3, ray->sum_dist, (double *)&new_pos, 1);
+		cblas_daxpy(3, 1.0, (double *)&ray->origin, 1, (double *)&new_pos, 1);
+		// vmult3v(&ray->direction, ray->sum_dist, &new_pos);
+		// nvadd3(&new_pos, &ray->origin);
+		double d = de(&new_pos);
 
 		if (d < MIN_DIST)
-			break;
+		{
+			return;
+		}
 
 		ray->sum_dist += d;
 	}
@@ -73,15 +118,32 @@ void *pix_shader(void *a)
 {
 	shade_args *args = (shade_args *)a;
 
-	// float res = (args->pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
+	// double res = (args->pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
 	ray ray;
+	ray.origin = args->cam->pos;
 
-	vec2 norm_pos = {.x = args->pos.x / SWIDTH, .y = args->pos.y / SHEIGHT};
+	vec2 my_ang = {.x = (args->pos.x / (double)SWIDTH - 0.5) * args->cam->fov.x, .y = (args->pos.y / (double)SHEIGHT - 0.5) * args->cam->fov.y};
+
+	double *my_rot = (double[]){cos(my_ang.x) * cos(my_ang.y),
+								-sin(my_ang.x),
+								cos(my_ang.x) * sin(my_ang.y),
+								sin(my_ang.x) * cos(my_ang.y),
+								cos(my_ang.x),
+								sin(my_ang.x) * sin(my_ang.y),
+								-sin(my_ang.y),
+								0,
+								cos(my_ang.y)};
+
+	vec3 for_vec = VEC3_FORWARD;
+
+	double out_mat[9];
+	cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, my_rot, 3, &(args->cam->direction_vec.x), 1, 0.0, &(ray.direction.x), 1);
 
 	march_ray(&ray);
 
-	float res = ray.steps / (float)MAX_STEPS;
-	int my_pix_id = args->pos.x + args->pos.y * (SWIDTH + 1);
+	// double res = fabs(norm_pos.x + norm_pos.y - 1.0);
+	double res = (double)ray.steps / (double)MAX_STEPS;
+	int my_pix_id = args->pos.x + args->pos.y * RSWIDTH;
 	args->obuf[my_pix_id] = symbols[(int)(res * symb_size)];
 
 	return NULL;
@@ -89,7 +151,7 @@ void *pix_shader(void *a)
 
 pthread_t tid_arr[SHEIGHT * SWIDTH];
 shade_args shader_args[SHEIGHT * SWIDTH];
-void render(char *buf, camera *cam)
+void render(char *buf, camera *cam) // before calling render, camera should contain updated direction vector
 {
 	for (int y = 0; y < SHEIGHT; y++)
 	{
@@ -108,4 +170,79 @@ void render(char *buf, camera *cam)
 
 	for (int i = 0; i < SWIDTH * SHEIGHT; i++) // Wait unitl all pixel get calculated
 		pthread_join(tid_arr[i], NULL);
+}
+
+void *input_listener(void *args)
+{
+	void (*callback)(char) = args;
+	char c;
+	char dc;
+	while (1)
+	{
+		c = getc(stdin);
+
+		pthread_mutex_lock(&stdout_lock);
+		if (c == 27 && getc(stdin) == 91)
+		{
+			switch (getc(stdin))
+			{
+			case 65: // up
+				dc = 1;
+				break;
+			case 66: // down
+				dc = 2;
+				break;
+			case 67: // right
+				dc = 3;
+				break;
+			case 68: // left
+				dc = 4;
+				break;
+			default:
+				dc = 0;
+			}
+		}
+		else
+			dc = c;
+		printf("%c[2K\r", 27);
+		pthread_mutex_unlock(&stdout_lock);
+
+		if (dc && callback != NULL)
+			callback(dc);
+
+		pthread_mutex_lock(&inp_lock);	// add key press to stack
+		if (inp.top_ind >= MAX_INP_LEN) // roll top id
+			inp.top_ind = 0;
+		inp.inp_chars[inp.top_ind++] = dc;
+		pthread_mutex_unlock(&inp_lock);
+	}
+}
+
+void init_lib(char *screen_buf)
+{
+	pthread_mutex_init(&stdout_lock, NULL);
+	pthread_mutex_init(&inp_lock, NULL);
+
+	memset(screen_buf, 0, BUF_SIZE);
+	for (int y = 0; y < SHEIGHT; y++)
+	{
+		int ind = SWIDTH + y * RSWIDTH;
+		screen_buf[ind++] = '\r';
+		screen_buf[ind] = '\n';
+	}
+	last_draw_time = millis();
+}
+
+void init_input(void (*callback)(char))
+{
+	initscr();
+	inp.top_ind = 0;
+	memset(inp.inp_chars, 0, MAX_INP_LEN);
+	pthread_t inpt_id;
+	pthread_create(&inpt_id, NULL, input_listener, callback);
+}
+
+void clear_lib()
+{
+	endwin();
 }

@@ -1,14 +1,16 @@
+
+
 typedef struct
 {
-	float x;
-	float y;
+	double x;
+	double y;
 } vec2;
 
 typedef struct
 {
-	float x;
-	float y;
-	float z;
+	double x;
+	double y;
+	double z;
 } vec3;
 
 typedef struct
@@ -24,144 +26,29 @@ typedef struct
 	int z;
 } ivec3;
 
-void vadd3(vec3 *v1, vec3 *v2, vec3 *vo)
+typedef struct
 {
-	vo->x = v1->x + v2->x;
-	vo->y = v1->y + v2->y;
-	vo->z = v1->z + v2->z;
-}
+	vec3 pos;
+	double r;
+} sphere;
 
-void vadd2(vec2 *v1, vec2 *v2, vec2 *vo)
-{
-	vo->x = v1->x + v2->x;
-	vo->y = v1->y + v2->y;
-}
+#define SET_VEC3_FORWARD(vec) \
+	vec.x = 1.0;              \
+	vec.y = 0.0;              \
+	vec.z = 0.0
 
-void vmult3v(vec3 *v1, float val, vec3 *vo)
-{
-	vo->x = v1->x * val;
-	vo->y = v1->y * val;
-	vo->z = v1->z * val;
-}
+#define VEC3_ZERO                    \
+	{                                \
+		.x = 0.0, .y = 0.0, .z = 0.0 \
+	}
 
-void vmult2v(vec2 *v1, float val, vec2 *vo)
-{
-	vo->x = v1->x * val;
-	vo->y = v1->y * val;
-}
+#define VEC3_FORWARD                 \
+	{                                \
+		.x = 1.0, .y = 0.0, .z = 0.0 \
+	}
 
-void vmult3(vec3 *v1, vec3 *v2, vec3 *vo)
-{
-	vo->x = v1->x * v2->x;
-	vo->y = v1->y * v2->y;
-	vo->z = v1->z * v2->z;
-}
+#define VEC3 \
+	(xx, yy, zz) { .x = xx, .y = yy, .z = zz }
 
-void vmult2(vec2 *v1, vec2 *v2, vec2 *vo)
-{
-	vo->x = v1->x * v2->x;
-	vo->y = v1->y * v2->y;
-}
-
-void nvadd3(vec3 *v1, vec3 *v2)
-{
-	v1->x += v2->x;
-	v1->y += v2->y;
-	v1->z += v2->z;
-}
-
-void nvadd2(vec2 *v1, vec2 *v2)
-{
-	v1->x += v2->x;
-	v1->y += v2->y;
-}
-
-void nvmult3v(vec3 *v1, float val)
-{
-	v1->x *= val;
-	v1->y *= val;
-	v1->z *= val;
-}
-
-void nvmult2v(vec2 *v1, float val)
-{
-	v1->x *= val;
-	v1->y *= val;
-}
-
-void nvmult3(vec3 *v1, vec3 *v2)
-{
-	v1->x *= v2->x;
-	v1->y *= v2->y;
-	v1->z *= v2->z;
-}
-
-void nvmult2(vec2 *v1, vec2 *v2)
-{
-	v1->x *= v2->x;
-	v1->y *= v2->y;
-}
-
-void vdiv3v(vec3 *v1, float val, vec3 *vo)
-{
-	vo->x = v1->x / val;
-	vo->y = v1->y / val;
-	vo->z = v1->z / val;
-}
-
-void vdiv2v(vec2 *v1, float val, vec2 *vo)
-{
-	vo->x = v1->x / val;
-	vo->y = v1->y / val;
-}
-
-void vdiv3(vec3 *v1, vec3 *v2, vec3 *vo)
-{
-	vo->x = v1->x / v2->x;
-	vo->y = v1->y / v2->y;
-	vo->z = v1->z / v2->z;
-}
-
-void vdiv2(vec2 *v1, vec2 *v2, vec2 *vo)
-{
-	vo->x = v1->x / v2->x;
-	vo->y = v1->y / v2->y;
-}
-
-void nvdiv3v(vec3 *v1, float val)
-{
-	v1->x /= val;
-	v1->y /= val;
-	v1->z /= val;
-}
-
-void nvdiv2v(vec2 *v1, float val)
-{
-	v1->x /= val;
-	v1->y /= val;
-}
-
-void nvdiv3(vec3 *v1, vec3 *v2)
-{
-	v1->x /= v2->x;
-	v1->y /= v2->y;
-	v1->z /= v2->z;
-}
-
-void nvdiv2(vec2 *v1, vec2 *v2)
-{
-	v1->x /= v2->x;
-	v1->y /= v2->y;
-}
-
-//////////////////
-
-float length3(vec3 *vec)
-{
-	return vec->x * vec->x + vec->y * vec->y + vec->z * vec->z;
-}
-
-float length2(vec2 *vec)
-{
-	return vec->x * vec->x + vec->y * vec->y;
-}
+#define PI 3.141592653589793238
+#define D2RAD 0.017453292519943295
