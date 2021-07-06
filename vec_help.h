@@ -1,5 +1,8 @@
 
 
+#ifndef VECH_PROT
+#define VECH_PROT
+
 typedef struct
 {
 	double x;
@@ -52,3 +55,5 @@ typedef struct
 
 #define PI 3.141592653589793238
 #define D2RAD 0.017453292519943295
+
+#endif

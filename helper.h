@@ -3,21 +3,22 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
-#include <math.h>
 #include <cblas.h>
 #include <ncurses.h>
 #include <inttypes.h>
 #include <time.h>
+#include <math.h>
 
 #include "vec_help.h"
+#include "de_list.h"
 
-#define SWIDTH 69
-#define SHEIGHT 20
+#define SWIDTH 90
+#define SHEIGHT 30
 #define RSWIDTH (SWIDTH + 2)
 #define BUF_SIZE RSWIDTH *SHEIGHT + 1
 
-#define MAX_STEPS 500
-#define MIN_DIST 0.000000000001
+#define MAX_STEPS 200
+#define MIN_DIST 0.0001
 #define MAX_INP_LEN 1024
 
 #define DEBUG_PRINT
@@ -79,17 +80,9 @@ void draw(char *buf)
 	int64_t cur_time = millis();
 	time_delta = cur_time - last_draw_time;
 	last_draw_time = millis();
-	printf("\rFPS: %f    | input buffer len: %d%d\n", round(100000.0f / (float)time_delta) / 100.0f, inp.top_ind);
+	printf("\r\nFPS: %.2f    | input buffer len: %d\r\n", 1000.0f / (float)time_delta, inp.top_ind);
 #endif
 	pthread_mutex_unlock(&stdout_lock);
-}
-
-const sphere main_sphere = {.pos = {.x = 0.0, .y = 0.0, .z = 0.0}, 1.0};
-
-double de(vec3 *pos)
-{
-	cblas_daxpy(3, -1.0, &main_sphere.pos.x, 1, &pos->x, 1);
-	return cblas_dnrm2(3, &pos->x, 1) - main_sphere.r;
 }
 
 void march_ray(ray *ray)
@@ -124,15 +117,17 @@ void *pix_shader(void *a)
 
 	vec2 my_ang = {.x = (args->pos.x / (double)SWIDTH - 0.5) * args->cam->fov.x, .y = (args->pos.y / (double)SHEIGHT - 0.5) * args->cam->fov.y};
 
-	double *my_rot = (double[]){cos(my_ang.x) * cos(my_ang.y),
-								-sin(my_ang.x),
-								cos(my_ang.x) * sin(my_ang.y),
-								sin(my_ang.x) * cos(my_ang.y),
-								cos(my_ang.x),
-								sin(my_ang.x) * sin(my_ang.y),
-								-sin(my_ang.y),
-								0,
-								cos(my_ang.y)};
+	double cam_z = args->cam->direction_ang.z;
+	double *my_rot = (double[]){
+		cos(my_ang.x) * cos(my_ang.y),
+		cos(my_ang.x) * sin(my_ang.y) * sin(cam_z) - sin(my_ang.x) * cos(cam_z),
+		cos(my_ang.x) * sin(my_ang.y) * cos(cam_z) + sin(my_ang.x) * sin(cam_z),
+		sin(my_ang.x) * cos(my_ang.y),
+		sin(my_ang.x) * sin(my_ang.y) * sin(cam_z) + cos(my_ang.x) * cos(cam_z),
+		sin(my_ang.x) * sin(my_ang.y) * cos(cam_z) - cos(my_ang.x) * sin(cam_z),
+		-sin(my_ang.y),
+		cos(my_ang.y) * sin(cam_z),
+		cos(my_ang.y) * cos(cam_z)};
 
 	vec3 for_vec = VEC3_FORWARD;
 
@@ -213,7 +208,7 @@ void *input_listener(void *args)
 		pthread_mutex_lock(&inp_lock);	// add key press to stack
 		if (inp.top_ind >= MAX_INP_LEN) // roll top id
 			inp.top_ind = 0;
-		inp.inp_chars[inp.top_ind++] = dc;
+		inp.inp_chars[++inp.top_ind] = dc;
 		pthread_mutex_unlock(&inp_lock);
 	}
 }

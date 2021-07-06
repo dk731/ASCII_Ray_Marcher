@@ -4,7 +4,7 @@ char screen_buf[BUF_SIZE];
 
 float hor_fow = 45.0f * D2RAD;
 
-double camera_sens = 5 * D2RAD;
+double camera_sens = 1 * D2RAD;
 
 double move_speed = 0.1;
 double sprint_mult = 1.5;
@@ -23,7 +23,7 @@ int main()
 
         pthread_mutex_lock(&inp_lock);
         vec3 move_len = VEC3_ZERO;
-        while (inp.top_ind > 0)
+        while (inp.top_ind >= 0)
         {
             switch (inp.inp_chars[inp.top_ind--])
             {
@@ -46,10 +46,10 @@ int main()
                 move_len.x -= move_speed;
                 break;
             case 'd':
-                move_len.z += move_speed;
+                move_len.y += move_speed;
                 break;
             case 'a':
-                move_len.z -= move_speed;
+                move_len.y -= move_speed;
                 break;
             case 'W':
                 move_len.x += move_speed * sprint_mult;
@@ -58,20 +58,20 @@ int main()
                 move_len.x -= move_speed * sprint_mult;
                 break;
             case 'D':
-                move_len.z += move_speed * sprint_mult;
+                move_len.y += move_speed * sprint_mult;
                 break;
             case 'A':
-                move_len.z -= move_speed * sprint_mult;
+                move_len.y -= move_speed * sprint_mult;
                 break;
             case 32: // space
-                move_len.y += move_speed;
+                move_len.z += move_speed;
                 break;
             case 'z':
             case 'Z':
-                move_len.y -= move_speed;
+                move_len.z -= move_speed;
                 break;
-            case 'r':
-            case 'R':
+            case 'e':
+            case 'E':
                 main_camera.direction_ang.z += camera_sens;
                 break;
             case 'q':
@@ -84,7 +84,6 @@ int main()
         }
 
         vec3 dir = main_camera.direction_ang;
-        // cam->trans_mat = {};
         main_camera.trans_mat = (double[]){
             cos(dir.x) * cos(dir.y),
             cos(dir.x) * sin(dir.y) * sin(dir.z) - sin(dir.x) * cos(dir.z),
