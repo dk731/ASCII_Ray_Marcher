@@ -129,9 +129,6 @@ void *pix_shader(void *a)
 		cos(my_ang.y) * sin(cam_z),
 		cos(my_ang.y) * cos(cam_z)};
 
-	vec3 for_vec = VEC3_FORWARD;
-
-	double out_mat[9];
 	cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, my_rot, 3, &(args->cam->direction_vec.x), 1, 0.0, &(ray.direction.x), 1);
 
 	march_ray(&ray);

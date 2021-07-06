@@ -14,9 +14,9 @@ int main()
     init_lib(screen_buf);
     init_input(NULL);
 
-    camera main_camera = {.direction_ang = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
+    camera main_camera = {.direction_ang = {.x = 90.0 * D2RAD, .y = 0.0, .z = 0.0},
                           .fov = {.x = hor_fow, .y = SHEIGHT / (double)SWIDTH * hor_fow},
-                          .pos = {.x = 0.0f, .y = 0.0f, .z = 0.0f}};
+                          .pos = {.x = 0.0, .y = -10.0, .z = 0.0}};
     bool running = true;
     while (running)
     {
