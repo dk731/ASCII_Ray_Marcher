@@ -72,7 +72,11 @@ int64_t millis()
 	return ((int64_t)now.tv_sec) * 1000 + ((int64_t)now.tv_nsec) / 1000000;
 }
 
+#ifndef DEBUG_PRINT
 void draw(char *buf)
+#else
+void draw(char *buf, camera *cam)
+#endif
 {
 	pthread_mutex_lock(&stdout_lock);
 	printf("\033c");
@@ -81,7 +85,18 @@ void draw(char *buf)
 	int64_t cur_time = millis();
 	time_delta = cur_time - last_draw_time;
 	last_draw_time = millis();
-	printf("\r\nFPS: %.2f    | input buffer len: %d\r\n", 1000.0f / (float)time_delta, inp.top_ind + 1);
+	printf("\r\nFPS: %.2f | Pos: %.2f, %.2f, %.2f | Rot: %.2f, %.2f, %.2f | Dir: %.2f, %.2f, %2.f | Inp Buf: %d\r\n",
+		   1000.0f / (float)time_delta,
+		   cam->pos.x,
+		   cam->pos.y,
+		   cam->pos.z,
+		   cam->direction_ang.x * 57.2958,
+		   cam->direction_ang.y * 57.2958,
+		   cam->direction_ang.z * 57.2958,
+		   cam->direction_vec.x,
+		   cam->direction_vec.y,
+		   cam->direction_vec.z,
+		   inp.top_ind + 1);
 #endif
 	pthread_mutex_unlock(&stdout_lock);
 }

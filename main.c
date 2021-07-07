@@ -14,9 +14,9 @@ int main()
     init_lib(screen_buf);
     init_input(NULL);
 
-    camera main_camera = {.direction_ang = {.x = 90.0 * D2RAD, .y = 0.0, .z = 0.0},
-                          .fov = {.x = hor_fow, .y = SHEIGHT / (double)SWIDTH * hor_fow},
-                          .pos = {.x = -10.0, .y = -10.0, .z = 0.0}};
+    camera main_camera = {.direction_ang = {.x = 0.0 * D2RAD, .y = 0.0, .z = 0.0},
+                          .fov = {.x = hor_fow, .y = hor_fow / 1.5},
+                          .pos = {.x = -10.0, .y = 0.0, .z = 0.0}};
     bool running = true;
     while (running)
     {
@@ -92,7 +92,7 @@ int main()
             cos(dir.x),
             sin(dir.x) * sin(dir.y),
             -sin(dir.y),
-            0,
+            0.0,
             cos(dir.y)};
 
         vec3 for_vec = VEC3_FORWARD;
@@ -104,7 +104,7 @@ int main()
         pthread_mutex_unlock(&inp_lock);
 
         render(screen_buf, &main_camera);
-        draw(screen_buf);
+        draw(screen_buf, &main_camera);
     }
 
     clear_lib();
