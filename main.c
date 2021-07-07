@@ -16,7 +16,7 @@ int main()
 
     camera main_camera = {.direction_ang = {.x = 90.0 * D2RAD, .y = 0.0, .z = 0.0},
                           .fov = {.x = hor_fow, .y = SHEIGHT / (double)SWIDTH * hor_fow},
-                          .pos = {.x = 0.0, .y = -10.0, .z = 0.0}};
+                          .pos = {.x = -10.0, .y = -10.0, .z = 0.0}};
     bool running = true;
     while (running)
     {
@@ -86,14 +86,14 @@ int main()
         vec3 dir = main_camera.direction_ang;
         main_camera.trans_mat = (double[]){
             cos(dir.x) * cos(dir.y),
-            cos(dir.x) * sin(dir.y) * sin(dir.z) - sin(dir.x) * cos(dir.z),
-            cos(dir.x) * sin(dir.y) * cos(dir.z) + sin(dir.x) * sin(dir.z),
+            -sin(dir.x),
+            cos(dir.x) * sin(dir.y),
             sin(dir.x) * cos(dir.y),
-            sin(dir.x) * sin(dir.y) * sin(dir.z) + cos(dir.x) * cos(dir.z),
-            sin(dir.x) * sin(dir.y) * cos(dir.z) - cos(dir.x) * sin(dir.z),
+            cos(dir.x),
+            sin(dir.x) * sin(dir.y),
             -sin(dir.y),
-            cos(dir.y) * sin(dir.z),
-            cos(dir.y) * cos(dir.z)};
+            0,
+            cos(dir.y)};
 
         vec3 for_vec = VEC3_FORWARD;
         vec3 pos_offset;

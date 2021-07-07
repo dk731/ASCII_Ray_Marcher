@@ -18,6 +18,7 @@
 #define BUF_SIZE RSWIDTH *SHEIGHT + 1
 
 #define MAX_STEPS 200
+#define MAX_DIST 1000000.0
 #define MIN_DIST 0.0001
 #define MAX_INP_LEN 1024
 
@@ -80,30 +81,33 @@ void draw(char *buf)
 	int64_t cur_time = millis();
 	time_delta = cur_time - last_draw_time;
 	last_draw_time = millis();
-	printf("\r\nFPS: %.2f    | input buffer len: %d\r\n", 1000.0f / (float)time_delta, inp.top_ind);
+	printf("\r\nFPS: %.2f    | input buffer len: %d\r\n", 1000.0f / (float)time_delta, inp.top_ind + 1);
 #endif
 	pthread_mutex_unlock(&stdout_lock);
 }
 
-void march_ray(ray *ray)
+void march_ray(ray *pray)
 {
-	ray->sum_dist = 0.0f;
-	for (; ray->steps < MAX_STEPS; ray->steps++)
+	pray->sum_dist = 0.0f;
+	pray->steps = 0;
+	for (; pray->steps < MAX_STEPS; pray->steps++)
 	{
 		vec3 new_pos;
-		memcpy(&new_pos, &ray->direction, sizeof(double) * 3);
-		cblas_dscal(3, ray->sum_dist, (double *)&new_pos, 1);
-		cblas_daxpy(3, 1.0, (double *)&ray->origin, 1, (double *)&new_pos, 1);
-		// vmult3v(&ray->direction, ray->sum_dist, &new_pos);
-		// nvadd3(&new_pos, &ray->origin);
+		memcpy(&new_pos, &pray->direction, sizeof(double) * 3);
+		cblas_dscal(3, pray->sum_dist, (double *)&new_pos, 1);
+		cblas_daxpy(3, 1.0, (double *)&pray->origin, 1, (double *)&new_pos, 1);
+
 		double d = de(&new_pos);
 
 		if (d < MIN_DIST)
+			return;
+		else if (pray->sum_dist > MAX_DIST)
 		{
+			pray->steps = MAX_STEPS;
 			return;
 		}
 
-		ray->sum_dist += d;
+		pray->sum_dist += d;
 	}
 }
 
@@ -112,8 +116,8 @@ void *pix_shader(void *a)
 	shade_args *args = (shade_args *)a;
 
 	// double res = (args->pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
-	ray ray;
-	ray.origin = args->cam->pos;
+	ray pray;
+	pray.origin = args->cam->pos;
 
 	vec2 my_ang = {.x = (args->pos.x / (double)SWIDTH - 0.5) * args->cam->fov.x, .y = (args->pos.y / (double)SHEIGHT - 0.5) * args->cam->fov.y};
 
@@ -129,12 +133,12 @@ void *pix_shader(void *a)
 		cos(my_ang.y) * sin(cam_z),
 		cos(my_ang.y) * cos(cam_z)};
 
-	cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, my_rot, 3, &(args->cam->direction_vec.x), 1, 0.0, &(ray.direction.x), 1);
+	cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, my_rot, 3, &(args->cam->direction_vec.x), 1, 0.0, &(pray.direction.x), 1);
 
-	march_ray(&ray);
+	march_ray(&pray);
 
 	// double res = fabs(norm_pos.x + norm_pos.y - 1.0);
-	double res = (double)ray.steps / (double)MAX_STEPS;
+	double res = (double)pray.steps / (double)MAX_STEPS;
 	int my_pix_id = args->pos.x + args->pos.y * RSWIDTH;
 	args->obuf[my_pix_id] = symbols[(int)(res * symb_size)];
 

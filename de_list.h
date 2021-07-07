@@ -44,10 +44,10 @@ float de(vec3 *pos)
 	return cblas_dnrm2(3, &(pos->x), 1) * pow(SCALE, -(double)n);
 }
 #else
-const sphere main_sphere = {.pos = {.x = 0.0, .y = 0.0, .z = 0.0}, 1.0};
+const sphere main_sphere = {.pos = {.x = -10.0, .y = 0.0, .z = 0.0}, .r = 1.0};
 double de(vec3 *pos)
 {
-	cblas_daxpy(3, -1.0, &main_sphere.pos.x, 1, &pos->x, 1);
-	return cblas_dnrm2(3, &pos->x, 1) - main_sphere.r;
+	cblas_daxpy(3, -1.0, &main_sphere.pos.x, 1, &(pos->x), 1);
+	return cblas_dnrm2(3, &(pos->x), 1) - main_sphere.r;
 }
 #endif
