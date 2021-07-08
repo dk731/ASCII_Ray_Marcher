@@ -287,7 +287,6 @@ buffer *init_draw_buf(int width, int height)
 
 	return obuf;
 }
-
 void clear_buf(buffer *buf)
 {
 	free(buf->data);
@@ -297,7 +296,7 @@ void clear_buf(buffer *buf)
 	free(buf->shader_args);
 }
 
-void high_res_screenshot(buffer *buf, camera *cam) // creates one image from current cammera view in higher resolution
+void high_res_screenshot(camera *cam) // creates one image from current cammera view in higher resolution
 {
 	pthread_mutex_lock(&pause_draw);
 	printf("\r\nPlease Enter desired image with and height: ");
@@ -315,28 +314,15 @@ void high_res_screenshot(buffer *buf, camera *cam) // creates one image from cur
 	camera tmp_cam = {.direction_vec = COPY_VEC3(cam->direction_vec),
 					  .pos = COPY_VEC3(cam->pos),
 					  .fov = COPY_VEC2(cam->fov)};
-	//   .fov = {.x = cam->fov.x * (buf->size.x / (double)w), .y = cam->fov.y * (buf->size.y / (double)h)}};
 
 	render(tmp_buf, &tmp_cam);
 
-	// Open a file for writing.
-	// (This will replace any existing file. Use "w+" for appending)
 	FILE *ofile = fopen(file_name, "w");
+	fputs(tmp_buf->data, ofile);
 
-	if (!ofile)
-	{
-		printf("Was unbale to create file...");
-		goto END_FILE_SAVE;
-	}
-
-	int results = fputs(tmp_buf->data, ofile);
-	if (results == EOF)
-		printf("Was unable to save file...");
-	else
-		printf("Sucessfully saved screenshot as: %s", file_name);
 	fclose(ofile);
 
-END_FILE_SAVE:
+	clear_buf(tmp_buf);
 
 	pthread_mutex_unlock(&pause_draw);
 }

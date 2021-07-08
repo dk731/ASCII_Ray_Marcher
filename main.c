@@ -17,7 +17,7 @@ void screenshot_callb(char c)
 
     if (millis() - last_screen >= 3000) // allow screenshot only once in 3 sec
     {
-        high_res_screenshot(sbuf, &main_camera);
+        high_res_screenshot(&main_camera);
         last_screen = millis();
     }
 }
