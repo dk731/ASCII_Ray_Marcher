@@ -21,7 +21,8 @@
 #define MAX_INP_LEN 1024
 #define MAX_CALLBACK_LEN 100
 
-#define MAX_THREADS_COUNT 16384
+// #define MAX_THREADS_COUNT 16384
+#define MAX_THREADS_COUNT 1024
 
 #define DEBUG_PRINT
 
@@ -305,10 +306,10 @@ buffer *init_draw_buf(int width, int height)
 void clear_buf(buffer *buf)
 {
 	free(buf->data);
-	free(buf);
-
 	free(buf->tid_arr);
 	free(buf->shader_args);
+
+	free(buf);
 }
 
 void high_res_screenshot(buffer *buf, camera *cam) // creates one image from current cammera view in higher resolution
