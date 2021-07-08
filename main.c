@@ -1,7 +1,5 @@
 #include "helper.h"
 
-char screen_buf[BUF_SIZE];
-
 float hor_fow = 45.0f * D2RAD;
 
 double camera_sens = 1 * D2RAD;
@@ -9,23 +7,42 @@ double camera_sens = 1 * D2RAD;
 double move_speed = 0.1;
 double sprint_mult = 1.5;
 
+long last_screen = -1;
+
+buffer *sbuf;
+camera main_camera;
+
+void screenshot_callb(char c)
+{
+
+    if (millis() - last_screen >= 3000) // allow screenshot only once in 3 sec
+    {
+        high_res_screenshot(sbuf, &main_camera);
+        last_screen = millis();
+    }
+}
+
 int main()
 {
-    init_lib(screen_buf);
-    init_input(NULL);
+    init_lib();
+    init_input();
+    callback ss_cb = {.func = screenshot_callb, .pattern = "pP"};
+    add_callback(&ss_cb);
+    int w = 90, h = 30;
+    sbuf = init_draw_buf(w, h);
 
-    camera main_camera = {.direction_ang = {.x = 0.0 * D2RAD, .y = 0.0, .z = 0.0},
-                          .fov = {.x = hor_fow, .y = hor_fow / 1.5},
-                          .pos = {.x = -10.0, .y = 0.0, .z = 0.0}};
+    SET_VEC3(main_camera.pos, -5.0, 0.0, 0.0);
+    SET_VEC3(main_camera.direction_ang, 0.0, 0.0, 0.0);
+    SET_VEC2(main_camera.fov, hor_fow, (hor_fow * h) / w * 1.5);
+
     bool running = true;
     while (running)
     {
-
         pthread_mutex_lock(&inp_lock);
         vec3 move_len = VEC3_ZERO;
-        while (inp.top_ind >= 0)
+        while (inp.top >= 0)
         {
-            switch (inp.inp_chars[inp.top_ind--])
+            switch (inp.inp_chars[inp.top--])
             {
             case 1: // [1, 4] - camera rotation: up, down, right, left
                 main_camera.direction_ang.y -= camera_sens;
@@ -80,8 +97,10 @@ int main()
                 break;
             case 27: // escape
                 running = false;
+                break;
             }
         }
+        pthread_mutex_unlock(&inp_lock);
 
         vec3 dir = main_camera.direction_ang;
         main_camera.trans_mat = (double[]){
@@ -101,10 +120,8 @@ int main()
         cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, main_camera.trans_mat, 3, &(move_len.x), 1, 0.0, &(pos_offset.x), 1);
         cblas_daxpy(3, 1.0, &(pos_offset.x), 1, &(main_camera.pos.x), 1);
 
-        pthread_mutex_unlock(&inp_lock);
-
-        render(screen_buf, &main_camera);
-        draw(screen_buf, &main_camera);
+        render(sbuf, &main_camera);
+        draw(sbuf, &main_camera);
     }
 
     clear_lib();
