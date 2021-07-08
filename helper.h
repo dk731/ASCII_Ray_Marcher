@@ -8,6 +8,7 @@
 #include <inttypes.h>
 #include <time.h>
 #include <math.h>
+#include <errno.h>
 
 #include "vec_help.h"
 #include "de_list.h"
@@ -19,6 +20,8 @@
 #define MIN_DIST 0.0001
 #define MAX_INP_LEN 1024
 #define MAX_CALLBACK_LEN 100
+
+#define MAX_THREADS_COUNT 16384
 
 #define DEBUG_PRINT
 
@@ -90,6 +93,7 @@ pthread_mutex_t waiting_char;
 pthread_mutex_t pause_draw;
 inp_str inp;
 inp_callbacks inp_calls;
+int active_threads_amount = 0;
 
 int64_t millis()
 {
@@ -156,9 +160,10 @@ void march_ray(ray *pray)
 
 void *pix_shader(void *a)
 {
+	active_threads_amount++;
 	shade_args *args = (shade_args *)a;
 
-	// double res = (args->pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
+	// double res = (args-16384pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
 	ray pray;
 	pray.origin = args->cam->pos;
 
@@ -185,6 +190,7 @@ void *pix_shader(void *a)
 	int my_pix_id = args->pos.x + args->pos.y * args->obuf->rw;
 	args->obuf->data[my_pix_id] = symbols[(int)(res * symb_size)];
 
+	active_threads_amount--;
 	return NULL;
 }
 
@@ -195,19 +201,27 @@ void render(buffer *buf, camera *cam) // before calling render, camera should co
 	{
 		for (x = 0; x < buf->size.x; x++)
 		{
-			shade_args *cur_arg = &buf->shader_args[x + y * buf->size.x];
+			int cur_id = x + y * buf->size.x;
+			shade_args *cur_arg = &buf->shader_args[cur_id];
 
 			cur_arg->pos.x = x;
 			cur_arg->pos.y = y;
 			cur_arg->obuf = buf;
 			cur_arg->cam = cam;
 
-			pthread_create(&buf->tid_arr[x + y * buf->size.x], NULL, pix_shader, cur_arg);
+			while (active_threads_amount > MAX_THREADS_COUNT)
+				usleep(100);
+
+			pthread_create(&buf->tid_arr[cur_id], NULL, pix_shader, cur_arg);
+			pthread_detach(buf->tid_arr[cur_id]);
 		}
 	}
 
-	for (int i = 0; i < buf->size.x * buf->size.y; i++) // Wait unitl all pixel get calculated
-		pthread_join(buf->tid_arr[i], NULL);
+	while (!active_threads_amount)
+		usleep(100);
+
+	// for (int i = 0; i < buf->size.x * buf->size.y; i++) // Wait unitl all pixel get calculated
+	// 	pthread_join(buf->tid_arr[i], NULL);
 }
 
 void *input_listener()
@@ -297,7 +311,7 @@ void clear_buf(buffer *buf)
 	free(buf->shader_args);
 }
 
-void high_res_screenshot(camera *cam) // creates one image from current cammera view in higher resolution
+void high_res_screenshot(buffer *buf, camera *cam) // creates one image from current cammera view in higher resolution
 {
 	pthread_mutex_lock(&pause_draw);
 	printf("\r\nPlease Enter desired image with and height: ");
@@ -309,13 +323,13 @@ void high_res_screenshot(camera *cam) // creates one image from current cammera 
 	struct tm tm = *localtime(&t);
 	char file_name[200];
 
-	sprintf(file_name, "./screenshots/%02d-%02d_%02d:%02d:%02d_%dx%d.txt\n", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, w, h);
+	sprintf(file_name, "./screenshots/%02d-%02d_%02d:%02d:%02d_%dx%d.txt", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, w, h);
 
 	buffer *tmp_buf = init_draw_buf(w, h);
 	camera tmp_cam = {.direction_vec = COPY_VEC3(cam->direction_vec),
 					  .direction_ang = COPY_VEC3(cam->direction_ang),
 					  .pos = COPY_VEC3(cam->pos),
-					  .fov = COPY_VEC2(cam->fov)};
+					  .fov = VEC2(cam->fov.x, (cam->fov.x * buf->size.y) / buf->size.x * 2.0)};
 
 	render(tmp_buf, &tmp_cam);
 

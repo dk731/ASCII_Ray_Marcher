@@ -53,6 +53,11 @@ typedef struct
 #define VEC3 \
 	(xx, yy, zz) { .x = xx, .y = yy, .z = zz }
 
+#define VEC2(xx, yy)     \
+	{                    \
+		.x = xx, .y = yy \
+	}
+
 #define COPY_VEC3(vec)                     \
 	{                                      \
 		.x = vec.x, .y = vec.y, .z = vec.z \

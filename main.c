@@ -17,7 +17,7 @@ void screenshot_callb(char c)
 
     if (millis() - last_screen >= 3000) // allow screenshot only once in 3 sec
     {
-        high_res_screenshot(&main_camera);
+        high_res_screenshot(sbuf, &main_camera);
         last_screen = millis();
     }
 }
@@ -33,7 +33,7 @@ int main()
 
     SET_VEC3(main_camera.pos, -5.0, 0.0, 0.0);
     SET_VEC3(main_camera.direction_ang, 0.0, 0.0, 0.0);
-    SET_VEC2(main_camera.fov, hor_fow, (hor_fow * h) / w * 1.5);
+    SET_VEC2(main_camera.fov, hor_fow, (hor_fow * h) / w * 2.0);
 
     bool running = true;
     while (running)
