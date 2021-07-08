@@ -190,9 +190,10 @@ void *pix_shader(void *a)
 
 void render(buffer *buf, camera *cam) // before calling render, camera should contain updated direction vector
 {
-	for (int y = 0; y < buf->size.y; y++)
+	int y, x;
+	for (y = 0; y < buf->size.y; y++)
 	{
-		for (int x = 0; x < buf->size.x; x++)
+		for (x = 0; x < buf->size.x; x++)
 		{
 			shade_args *cur_arg = &buf->shader_args[x + y * buf->size.x];
 
@@ -271,7 +272,7 @@ buffer *init_draw_buf(int width, int height)
 	obuf->size.x = width;
 	obuf->size.y = height;
 	obuf->rw = width + ADD_BUF_SIZE;
-	int buf_size = (width + 2) * height + 1;
+	int buf_size = obuf->rw * height + 1;
 	obuf->data = malloc(buf_size);
 	memset(obuf->data, 0, buf_size);
 	for (int y = 0; y < height; y++)
@@ -312,6 +313,7 @@ void high_res_screenshot(camera *cam) // creates one image from current cammera 
 
 	buffer *tmp_buf = init_draw_buf(w, h);
 	camera tmp_cam = {.direction_vec = COPY_VEC3(cam->direction_vec),
+					  .direction_ang = COPY_VEC3(cam->direction_ang),
 					  .pos = COPY_VEC3(cam->pos),
 					  .fov = COPY_VEC2(cam->fov)};
 
