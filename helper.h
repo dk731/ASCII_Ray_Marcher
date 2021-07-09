@@ -9,6 +9,7 @@
 #include <time.h>
 #include <math.h>
 #include <errno.h>
+#include <stdatomic.h>
 
 #include "vec_help.h"
 #include "de_list.h"
@@ -21,8 +22,8 @@
 #define MAX_INP_LEN 1024
 #define MAX_CALLBACK_LEN 100
 
-// #define MAX_THREADS_COUNT 16384
 #define MAX_THREADS_COUNT 1024
+// #define MAX_THREADS_COUNT 1024
 
 #define DEBUG_PRINT
 
@@ -92,9 +93,10 @@ pthread_mutex_t stdout_lock;
 pthread_mutex_t inp_lock;
 pthread_mutex_t waiting_char;
 pthread_mutex_t pause_draw;
+
 inp_str inp;
 inp_callbacks inp_calls;
-int active_threads_amount = 0;
+atomic_int_fast16_t active_threads_amount = 0;
 
 int64_t millis()
 {
@@ -129,6 +131,7 @@ void draw(buffer *buf, camera *cam)
 		   cam->direction_vec.y,
 		   cam->direction_vec.z,
 		   inp.top + 1);
+
 #endif
 	pthread_mutex_unlock(&stdout_lock);
 	pthread_mutex_unlock(&pause_draw);
@@ -162,6 +165,7 @@ void march_ray(ray *pray)
 void *pix_shader(void *a)
 {
 	active_threads_amount++;
+
 	shade_args *args = (shade_args *)a;
 
 	// double res = (args-16384pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
@@ -213,12 +217,18 @@ void render(buffer *buf, camera *cam) // before calling render, camera should co
 			while (active_threads_amount > MAX_THREADS_COUNT)
 				usleep(100);
 
+			// int res;
+			// if (res = pthread_create(&buf->tid_arr[cur_id], NULL, pix_shader, cur_arg))
+			// 	printf("%d", res);
+			// if (res = pthread_detach(buf->tid_arr[cur_id]))
+			// 	printf("%d", res);
+
 			pthread_create(&buf->tid_arr[cur_id], NULL, pix_shader, cur_arg);
 			pthread_detach(buf->tid_arr[cur_id]);
 		}
 	}
 
-	while (!active_threads_amount)
+	while (active_threads_amount)
 		usleep(100);
 
 	// for (int i = 0; i < buf->size.x * buf->size.y; i++) // Wait unitl all pixel get calculated
@@ -279,6 +289,7 @@ void init_lib()
 	pthread_mutex_init(&stdout_lock, NULL);
 	pthread_mutex_init(&inp_lock, NULL);
 	pthread_mutex_init(&waiting_char, NULL);
+	pthread_mutex_init(&pause_draw, NULL);
 }
 
 buffer *init_draw_buf(int width, int height)

@@ -14,7 +14,8 @@ camera main_camera;
 
 void screenshot_callb(char c)
 {
-
+    char a = c;
+    c = a;
     if (millis() - last_screen >= 3000) // allow screenshot only once in 3 sec
     {
         high_res_screenshot(sbuf, &main_camera);
@@ -28,7 +29,7 @@ int main()
     init_input();
     callback ss_cb = {.func = screenshot_callb, .pattern = "pP"};
     add_callback(&ss_cb);
-    int w = 90, h = 30;
+    int w = 45, h = 15;
     sbuf = init_draw_buf(w, h);
 
     SET_VEC3(main_camera.pos, -5.0, 0.0, 0.0);
@@ -123,6 +124,8 @@ int main()
         render(sbuf, &main_camera);
         draw(sbuf, &main_camera);
     }
+
+    clear_buf(sbuf);
 
     clear_lib();
 }
