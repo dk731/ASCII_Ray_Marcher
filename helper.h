@@ -16,13 +16,15 @@
 
 #define ADD_BUF_SIZE 2
 
-#define MAX_STEPS 200
-#define MAX_DIST 1000000.0
-#define MIN_DIST 0.0001
+#define MAX_STEPS 500
+#define MAX_DIST 100000000.0
+#define MIN_DIST 0.00000001
 #define MAX_INP_LEN 1024
 #define MAX_CALLBACK_LEN 100
 
-#define MAX_THREADS_COUNT 1024
+#define COP_BMP
+
+#define MAX_THREADS_COUNT 64
 // #define MAX_THREADS_COUNT 1024
 
 #define DEBUG_PRINT
@@ -40,10 +42,9 @@ typedef struct
 {
 	vec3 pos;
 	vec3 direction_ang;
-	vec3 direction_vec;
 	vec2 fov;
 
-	double *trans_mat; // 3x3 matrix
+	double trans_mat[9]; // 3x3 matrix
 } camera;
 
 struct buffer;
@@ -87,6 +88,7 @@ typedef struct
 } inp_str;
 
 char symbols[] = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+char symb_col_map[255];
 const double symb_size = sizeof(symbols) - 2;
 
 pthread_mutex_t stdout_lock;
@@ -119,7 +121,7 @@ void draw(buffer *buf, camera *cam)
 	int64_t cur_time = millis();
 	buf->dtime = (cur_time - buf->last_draw) / 1000.0f;
 	buf->last_draw = millis();
-	printf("\r\nFPS: %.2f | Pos: %.2f, %.2f, %.2f | Rot: %.2f, %.2f, %.2f | Dir: %.2f, %.2f, %2.f | Inp Buf: %d\r\n",
+	printf("\r\nFPS: %.2f | Pos: %.2f, %.2f, %.2f | Rot: %.2f, %.2f, %.2f | Inp Buf: %d\r\n",
 		   1.0f / buf->dtime,
 		   cam->pos.x,
 		   cam->pos.y,
@@ -127,9 +129,6 @@ void draw(buffer *buf, camera *cam)
 		   cam->direction_ang.x * 57.2958,
 		   cam->direction_ang.y * 57.2958,
 		   cam->direction_ang.z * 57.2958,
-		   cam->direction_vec.x,
-		   cam->direction_vec.y,
-		   cam->direction_vec.z,
 		   inp.top + 1);
 
 #endif
@@ -164,8 +163,6 @@ void march_ray(ray *pray)
 
 void *pix_shader(void *a)
 {
-	active_threads_amount++;
-
 	shade_args *args = (shade_args *)a;
 
 	// double res = (args-16384pos.x + args->pos.y * SWIDTH) % (int)symb_size / symb_size;
@@ -177,16 +174,23 @@ void *pix_shader(void *a)
 	double cam_z = args->cam->direction_ang.z;
 	double *my_rot = (double[]){
 		cos(my_ang.x) * cos(my_ang.y),
-		cos(my_ang.x) * sin(my_ang.y) * sin(cam_z) - sin(my_ang.x) * cos(cam_z),
-		cos(my_ang.x) * sin(my_ang.y) * cos(cam_z) + sin(my_ang.x) * sin(cam_z),
+		-sin(my_ang.x) * cos(cam_z),
+		cos(my_ang.x) * sin(my_ang.y),
 		sin(my_ang.x) * cos(my_ang.y),
-		sin(my_ang.x) * sin(my_ang.y) * sin(cam_z) + cos(my_ang.x) * cos(cam_z),
-		sin(my_ang.x) * sin(my_ang.y) * cos(cam_z) - cos(my_ang.x) * sin(cam_z),
+		cos(my_ang.x),
+		sin(my_ang.x) * sin(my_ang.y),
 		-sin(my_ang.y),
-		cos(my_ang.y) * sin(cam_z),
-		cos(my_ang.y) * cos(cam_z)};
+		0.0,
+		cos(my_ang.y)};
 
-	cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, my_rot, 3, &(args->cam->direction_vec.x), 1, 0.0, &(pray.direction.x), 1);
+	double out_mat[9];
+
+	// cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, my_rot, 3, &(args->cam->direction_vec.x), 1, 0.0, &(pray.direction.x), 1);
+
+	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, 3, 3, 1.0, args->cam->trans_mat, 3, my_rot, 3, 0.0, out_mat, 3);
+
+	vec3 forward_vec = VEC3_FORWARD;
+	cblas_dgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0, out_mat, 3, &(forward_vec.x), 1, 0.0, &(pray.direction.x), 1);
 
 	march_ray(&pray);
 
@@ -201,6 +205,18 @@ void *pix_shader(void *a)
 
 void render(buffer *buf, camera *cam) // before calling render, camera should contain updated direction vector
 {
+	vec3 dir = cam->direction_ang;
+
+	cam->trans_mat[0] = cos(dir.x) * cos(dir.y);
+	cam->trans_mat[1] = cos(dir.x) * sin(dir.y) * sin(dir.z) - sin(dir.x) * cos(dir.z);
+	cam->trans_mat[2] = cos(dir.x) * sin(dir.y) * cos(dir.z) + sin(dir.x) * sin(dir.z);
+	cam->trans_mat[3] = sin(dir.x) * cos(dir.y);
+	cam->trans_mat[4] = sin(dir.x) * sin(dir.y) * sin(dir.z) + cos(dir.x) * cos(dir.z);
+	cam->trans_mat[5] = sin(dir.x) * sin(dir.y) * cos(dir.z) - cos(dir.x) * sin(dir.z);
+	cam->trans_mat[6] = -sin(dir.y);
+	cam->trans_mat[7] = cos(dir.y) * sin(dir.z);
+	cam->trans_mat[8] = cos(dir.y) * cos(dir.z);
+
 	int y, x;
 	for (y = 0; y < buf->size.y; y++)
 	{
@@ -214,7 +230,7 @@ void render(buffer *buf, camera *cam) // before calling render, camera should co
 			cur_arg->obuf = buf;
 			cur_arg->cam = cam;
 
-			while (active_threads_amount > MAX_THREADS_COUNT)
+			while (active_threads_amount >= MAX_THREADS_COUNT)
 				usleep(100);
 
 			// int res;
@@ -222,7 +238,7 @@ void render(buffer *buf, camera *cam) // before calling render, camera should co
 			// 	printf("%d", res);
 			// if (res = pthread_detach(buf->tid_arr[cur_id]))
 			// 	printf("%d", res);
-
+			active_threads_amount++;
 			pthread_create(&buf->tid_arr[cur_id], NULL, pix_shader, cur_arg);
 			pthread_detach(buf->tid_arr[cur_id]);
 		}
@@ -290,6 +306,12 @@ void init_lib()
 	pthread_mutex_init(&inp_lock, NULL);
 	pthread_mutex_init(&waiting_char, NULL);
 	pthread_mutex_init(&pause_draw, NULL);
+
+	float delta = 255 / symb_size;
+	for (int i = 0; i <= symb_size; i++)
+	{
+		symb_col_map[symbols[i]] = (symb_size - i) * delta;
+	}
 }
 
 buffer *init_draw_buf(int width, int height)
@@ -323,6 +345,39 @@ void clear_buf(buffer *buf)
 	free(buf);
 }
 
+void write_bmp(const char *path, buffer *buf)
+{
+	const uint pad = (4 - (3 * buf->size.x) % 4) % 4, filesize = 54 + (3 * buf->size.x + pad) * buf->size.y; // horizontal line must be a multiple of 4 bytes long, header is 54 bytes
+	char header[54] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0};
+	for (uint i = 0; i < 4; i++)
+	{
+		header[2 + i] = (char)((filesize >> (8 * i)) & 255);
+		header[18 + i] = (char)((buf->size.x >> (8 * i)) & 255);
+		header[22 + i] = (char)((buf->size.y >> (8 * i)) & 255);
+	}
+	char *img = malloc(filesize);
+	memset(img, 0, filesize);
+	for (uint i = 0; i < 54; i++)
+		img[i] = header[i];
+
+	for (int y = 0; y < buf->size.y; y++)
+	{
+		for (int x = 0; x < buf->size.x; x++)
+		{
+			char shade = symb_col_map[buf->data[x + y * buf->rw]];
+			const int i = 54 + 3 * x + y * (3 * buf->size.x + pad);
+			memset(&img[i], shade, 3);
+		}
+		for (uint p = 0; p < pad; p++)
+			img[54 + (3 * buf->size.x + p) + y * (3 * buf->size.x + pad)] = 0;
+	}
+
+	FILE *file = fopen(path, "w");
+	fwrite(header, sizeof(char), 54, file);
+	fwrite(img, sizeof(char), filesize, file);
+	fclose(file);
+}
+
 void high_res_screenshot(buffer *buf, camera *cam) // creates one image from current cammera view in higher resolution
 {
 	pthread_mutex_lock(&pause_draw);
@@ -335,23 +390,24 @@ void high_res_screenshot(buffer *buf, camera *cam) // creates one image from cur
 	struct tm tm = *localtime(&t);
 	char file_name[200];
 
-	sprintf(file_name, "./screenshots/%02d-%02d_%02d:%02d:%02d_%dx%d.txt", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, w, h);
-
 	buffer *tmp_buf = init_draw_buf(w, h);
-	camera tmp_cam = {.direction_vec = COPY_VEC3(cam->direction_vec),
-					  .direction_ang = COPY_VEC3(cam->direction_ang),
+	camera tmp_cam = {.direction_ang = COPY_VEC3(cam->direction_ang),
 					  .pos = COPY_VEC3(cam->pos),
 					  .fov = VEC2(cam->fov.x, (cam->fov.x * buf->size.y) / buf->size.x * 2.0)};
 
 	render(tmp_buf, &tmp_cam);
 
+	sprintf(file_name, "./screenshots/%02d-%02d_%02d:%02d:%02d_%dx%d.%s", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, w, h, "txt");
 	FILE *ofile = fopen(file_name, "w");
 	fputs(tmp_buf->data, ofile);
 
 	fclose(ofile);
 
+#ifdef COP_BMP
+	sprintf(file_name, "./screenshots/%02d-%02d_%02d:%02d:%02d_%dx%d.%s", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, w, h, "bmp");
+	write_bmp(file_name, tmp_buf);
+#endif
 	clear_buf(tmp_buf);
-
 	pthread_mutex_unlock(&pause_draw);
 }
 
