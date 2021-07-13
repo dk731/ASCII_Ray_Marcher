@@ -31,10 +31,10 @@ int main()
     init_input();
     callback ss_cb = {.func = screenshot_callb, .pattern = "pP"};
     add_callback(&ss_cb);
-    int w = 75, h = 35;
+    int w = 65, h = 25;
     sbuf = init_draw_buf(w, h);
 
-    SET_VEC3(main_camera.pos, 0.0, -50.0, 0.0);
+    SET_VEC3(main_camera.pos, 0.0, 0.0, 0.0);
     SET_VEC3(main_camera.direction_ang, 0.0, 0.0, 0.0);
     SET_VEC2(main_camera.fov, hor_fow, (hor_fow * h) / w * 2.0);
 
@@ -102,16 +102,12 @@ int main()
                 main_camera.direction_ang.z -= camera_sens;
                 break;
             case 'm':
+            case 'M':
                 main_sphere.r += sphere_resize;
                 break;
-            case 'M':
-                main_sphere.r += sphere_resize * sprint_mult;
-                break;
             case 'n':
-                main_sphere.r -= sphere_resize;
-                break;
             case 'N':
-                main_sphere.r -= sphere_resize * sprint_mult;
+                main_sphere.r -= sphere_resize;
                 break;
             case 27: // escape
                 running = false;

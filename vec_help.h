@@ -3,6 +3,12 @@
 #ifndef VECH_PROT
 #define VECH_PROT
 
+#define VEC3_SIZE 24
+#define VEC2_SIZE 16
+
+#define PI 3.141592653589793238
+#define D2RAD 0.017453292519943295
+
 typedef struct
 {
 	double x;
@@ -50,8 +56,10 @@ typedef struct
 		.x = 1.0, .y = 0.0, .z = 0.0 \
 	}
 
-#define VEC3 \
-	(xx, yy, zz) { .x = xx, .y = yy, .z = zz }
+#define VEC3(v1, v2, v3)          \
+	{                             \
+		.x = v1, .y = v2, .z = v3 \
+	}
 
 #define VEC2(xx, yy)     \
 	{                    \
@@ -77,7 +85,14 @@ typedef struct
 	vec.x = xx;               \
 	vec.y = yy
 
-#define PI 3.141592653589793238
-#define D2RAD 0.017453292519943295
+#define GET_VEC(vec) &(vec.x)
+
+#define VEC3_DLEN(v1, v2, resv, tmp)                       \
+	MCOPY_VEC3(tmp, v1);                                   \
+	cblas_daxpy(3, -1.0, GET_VEC(v2), 1, GET_VEC(tmp), 1); \
+	resv = cblas_dnrm2(3, GET_VEC(tmp), 1)
+
+#define MCOPY_VEC3(v1, v2) memcpy(GET_VEC(v1), GET_VEC(v2), VEC3_SIZE)
+#define MCOPY_VEC2(v1, v2) memcpy(GET_VEC(v1), GET_VEC(v2), VEC2_SIZE)
 
 #endif

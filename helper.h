@@ -16,15 +16,15 @@
 
 #define ADD_BUF_SIZE 2
 
-#define MAX_STEPS 500
-#define MAX_DIST 100000000.0
-#define MIN_DIST 0.00000001
+#define MAX_STEPS 512
+#define MAX_DIST 100.0
+#define MIN_DIST 0.000000001
 #define MAX_INP_LEN 1024
 #define MAX_CALLBACK_LEN 100
 
 #define COP_BMP
 
-#define MAX_THREADS_COUNT 64
+#define MAX_THREADS_COUNT 16
 // #define MAX_THREADS_COUNT 1024
 
 #define DEBUG_PRINT
@@ -34,6 +34,7 @@ typedef struct
 	vec3 origin;
 	vec3 direction;
 
+	double min_dist;
 	double sum_dist;
 	int steps;
 } ray;
@@ -140,6 +141,7 @@ void march_ray(ray *pray)
 {
 	pray->sum_dist = 0.0f;
 	pray->steps = 0;
+	pray->min_dist = MAX_DIST;
 	for (; pray->steps < MAX_STEPS; pray->steps++)
 	{
 		vec3 new_pos;
@@ -148,6 +150,9 @@ void march_ray(ray *pray)
 		cblas_daxpy(3, 1.0, (double *)&pray->origin, 1, (double *)&new_pos, 1);
 
 		double d = de(&new_pos);
+
+		if (d < pray->min_dist)
+			pray->min_dist = d;
 
 		if (d < MIN_DIST)
 			return;
@@ -196,6 +201,7 @@ void *pix_shader(void *a)
 
 	// double res = fabs(norm_pos.x + norm_pos.y - 1.0);
 	double res = (double)pray.steps / (double)MAX_STEPS;
+	// double res = pray.min_dist / MAX_DIST;
 	int my_pix_id = args->pos.x + args->pos.y * args->obuf->rw;
 	args->obuf->data[my_pix_id] = symbols[(int)(res * symb_size)];
 
