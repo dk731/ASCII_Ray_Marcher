@@ -86,6 +86,7 @@ typedef struct
 	vec.y = yy
 
 #define GET_VEC(vec) &(vec.x)
+#define GET_PVEC(vec) &(vec->x)
 
 #define VEC3_DLEN(v1, v2, resv, tmp)                       \
 	MCOPY_VEC3(tmp, v1);                                   \

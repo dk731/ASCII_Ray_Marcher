@@ -2,67 +2,55 @@
 #include <cblas.h>
 #include <math.h>
 
-// #define SERP_TRIANGLE
-#define MOD_SPHERES
+#define SERP_TRIANGLE
+// #define MOD_SPHERES
 // #define MAND_BULB
 
 #ifdef MOD_SPHERES
-sphere main_sphere = {.pos = {.x = 0.5, .y = 0.5, .z = 0.5}, 0.01};
+sphere main_sphere = {.pos = {.x = 0.5, .y = 0.5, .z = 0.5}, 0.35};
 double de(vec3 *pos)
 {
 	pos->x = fabs(fmod(pos->x, 1.0));
-	pos->y = fabs(fmod(pos->y, 1.0));
+	// pos->y = fabs(fmod(pos->y, 1.0));
 	pos->z = fabs(fmod(pos->z, 1.0));
 	cblas_daxpy(3, -1.0, &main_sphere.pos.x, 1, &pos->x, 1);
 	return cblas_dnrm2(3, &pos->x, 1) - main_sphere.r;
 }
 #elif defined(SERP_TRIANGLE)
-int itterations = 1;
-#define SCALE 2.0
-double de(vec3 *zz)
+int iterations = 10;
+double scale = 20.0;
+vec3 offset = VEC3_ZERO;
+double de(vec3 *z)
 {
-	vec3 a1 = VEC3(1.0, 1.0, 1.0);
-	vec3 a2 = VEC3(-1.0, -1.0, 1.0);
-	vec3 a3 = VEC3(1.0, -1.0, -1.0);
-	vec3 a4 = VEC3(-1.0, 1.0, -1.0);
-	vec3 z = COPY_VEC3((*zz));
 	int n = 0;
-	float dist, d;
-	while (n < itterations)
+	double tmp;
+	double *zp = GET_PVEC(z);
+
+	while (n < iterations)
 	{
-		vec3 c = COPY_VEC3(a1);
-		vec3 tmp_res;
-
-		VEC3_DLEN(z, a1, dist, tmp_res); // dist = length(z - a1)
-
-		VEC3_DLEN(z, a2, d, tmp_res);
-		if (d < dist)
+		if (z->x + z->y < 0.0)
 		{
-			MCOPY_VEC3(c, a2);
-			dist = d;
+			tmp = -z->x;
+			z->x = -z->y;
+			z->y = tmp;
 		}
-
-		VEC3_DLEN(z, a3, d, tmp_res);
-		if (d < dist)
+		if (z->x + z->z < 0.0)
 		{
-			MCOPY_VEC3(c, a3);
-			dist = d;
+			tmp = -z->x;
+			z->x = -z->z;
+			z->z = tmp;
 		}
-
-		VEC3_DLEN(z, a4, d, tmp_res);
-		if (d < dist)
+		if (z->y + z->z < 0.0)
 		{
-			MCOPY_VEC3(c, a4);
-			dist = d;
+			tmp = -z->z;
+			z->z = -z->y;
+			z->y = tmp;
 		}
-
-		cblas_dscal(3, (SCALE - 1.0), GET_VEC(c), 1);
-		cblas_daxpy(3, -1.0, GET_VEC(c), 1, GET_VEC(z), 1);
-		// z = SCALE * z - c * (SCALE - 1.0);
+		cblas_dscal(3, scale, zp, 1);
+		cblas_daxpy(3, -(scale - 1.0), GET_VEC(offset), 1, zp, 1);
 		n++;
 	}
-
-	return cblas_dnrm2(3, GET_VEC(z), 1) * pow(SCALE, (double)-n);
+	return cblas_dnrm2(3, zp, 1) * pow(scale, (double)(-n));
 }
 #elif defined(MAND_BULB)
 float DE(vec3 pos)

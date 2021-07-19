@@ -34,7 +34,7 @@ int main()
     int w = 65, h = 25;
     sbuf = init_draw_buf(w, h);
 
-    SET_VEC3(main_camera.pos, 0.0, 0.0, 0.0);
+    SET_VEC3(main_camera.pos, -10.0, 0.0, 0.0);
     SET_VEC3(main_camera.direction_ang, 0.0, 0.0, 0.0);
     SET_VEC2(main_camera.fov, hor_fow, (hor_fow * h) / w * 2.0);
 
@@ -101,14 +101,14 @@ int main()
             case 'Q':
                 main_camera.direction_ang.z -= camera_sens;
                 break;
-            case 'm':
-            case 'M':
-                main_sphere.r += sphere_resize;
-                break;
-            case 'n':
-            case 'N':
-                main_sphere.r -= sphere_resize;
-                break;
+            // case 'm':
+            // case 'M':
+            //     main_sphere.r += sphere_resize;
+            //     break;
+            // case 'n':
+            // case 'N':
+            //     main_sphere.r -= sphere_resize;
+            //     break;
             case 27: // escape
                 running = false;
                 break;

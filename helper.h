@@ -16,9 +16,9 @@
 
 #define ADD_BUF_SIZE 2
 
-#define MAX_STEPS 512
-#define MAX_DIST 100.0
-#define MIN_DIST 0.000000001
+#define MAX_STEPS 1024
+#define MAX_DIST 1000000.0
+#define MIN_DIST 0.00000001
 #define MAX_INP_LEN 1024
 #define MAX_CALLBACK_LEN 100
 
